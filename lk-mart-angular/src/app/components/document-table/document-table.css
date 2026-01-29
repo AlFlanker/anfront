@@ -159,6 +159,22 @@
   overflow: hidden;
 }
 
+.document-table ::ng-deep .ant-table-header,
+.document-table ::ng-deep .ant-table-body {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.document-table ::ng-deep .ant-table-header table,
+.document-table ::ng-deep .ant-table-body table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.document-table ::ng-deep .ant-table-header {
+  padding-right: 0;
+}
+
 .document-table ::ng-deep .ant-table-thead > tr > th {
   background: linear-gradient(to bottom, #f0f0f0 0%, #d9d9d9 100%);
   font-weight: 600;
