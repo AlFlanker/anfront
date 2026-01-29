@@ -132,6 +132,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  --table-scrollbar-size: 8px;
 }
 
 .document-table ::ng-deep .ant-table {
@@ -157,6 +158,26 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.document-table ::ng-deep .ant-table table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.document-table ::ng-deep .ant-table-header {
+  padding-right: 0;
+}
+
+.document-table ::ng-deep .ant-table-header table {
+  width: calc(100% + var(--table-scrollbar-size));
+  margin-right: calc(var(--table-scrollbar-size) * -1);
+  box-sizing: border-box;
+}
+
+.document-table ::ng-deep .ant-table-body {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
 }
 
 .document-table ::ng-deep .ant-table-thead > tr > th {
