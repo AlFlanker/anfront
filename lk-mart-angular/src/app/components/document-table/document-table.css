@@ -161,13 +161,14 @@
 
 .document-table ::ng-deep .ant-table-header,
 .document-table ::ng-deep .ant-table-body {
-  width: 100%;
+  width: 100% !important;
   box-sizing: border-box;
 }
 
 .document-table ::ng-deep .ant-table-header table,
 .document-table ::ng-deep .ant-table-body table {
-  width: 100%;
+  width: 100% !important;
+  min-width: 100% !important;
   table-layout: fixed;
 }
 
