@@ -173,8 +173,12 @@
 }
 
 .document-table ::ng-deep .ant-table-header {
-  padding-right: 0 !important;
-  margin-right: 0 !important;
+  padding-right: 8px;
+  margin-right: 0;
+}
+
+.document-table ::ng-deep .ant-table-body {
+  scrollbar-gutter: stable;
 }
 
 .document-table ::ng-deep .ant-table-thead > tr > th {
