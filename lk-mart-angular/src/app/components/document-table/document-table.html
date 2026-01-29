@@ -1,0 +1,895 @@
+<div class="document-table-container">
+  @if (subsystemLoading) {
+    <div class="global-spinner-overlay">
+      <div class="spinner-container">
+        <nz-spin
+          nzSpinning="true"
+          nzTip=""
+          nzSize="large"
+          class="global-spinner">
+        </nz-spin>
+        <div class="spinner-text">Открытие списковой формы...</div>
+        <div class="spinner-subtext">Таймаут: 10 секунд</div>
+        <button
+          nz-button
+          nzType="default"
+          nzSize="small"
+          (click)="cancelSubsystemOperation()"
+          class="cancel-button">
+          Отменить
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Заголовок с переключателями области -->
+  <nz-card class="scope-selector">
+    <nz-space nzAlign="center" nzSize="middle" class="scope-buttons">
+      <div>
+        <button
+          nz-button
+          class="scope-button"
+          [nzType]="isScopeActive('USER') ? 'primary' : 'default'"
+          (click)="switchScope('USER')">
+          <span nz-icon nzType="user"></span>
+          Мои документы
+        </button>
+        <button
+          nz-button
+          class="scope-button"
+          [nzType]="isScopeActive('ORG') ? 'primary' : 'default'"
+          (click)="switchScope('ORG')">
+          <span nz-icon nzType="bank"></span>
+          Документы организации
+        </button>
+      </div>
+      <div>
+        <button nz-button
+                nzType="default"
+                (click)="reloadAll()">
+          <span nz-icon nzType="close-circle"></span>
+          Сбросить фильтры и перезагрузить
+        </button>
+        <button
+          nz-button
+          nzType="primary"
+          (click)="applyAllFilters()"
+          [disabled]="!hasActiveFilters() && !hasAnyAppliedFilters()"
+          [ngClass]="{'apply-filters-button': true, 'has-pending-filters': hasActiveFilters()}"
+          class="apply-filters-button">
+          <span nz-icon [nzType]="hasActiveFilters() ? 'filter' : 'reload'"></span>
+          {{ hasActiveFilters() ? 'Применить фильтры' : 'Обновить' }}
+          @if (hasActiveFilters()) {
+            <span class="pending-indicator">●</span>
+          }
+        </button>
+      </div>
+    </nz-space>
+  </nz-card>
+  <!-- Сообщение об ошибке -->
+  @if (error) {
+    <nz-alert
+      nzType="error"
+      nzShowIcon
+      [nzMessage]="error"
+      class="error-alert">
+    </nz-alert>
+  }
+
+  <!-- Таблица документов -->
+  <nz-card class="table-card">
+    <!-- Пока loading === true, отображается спиннер-->
+    <nz-spin [nzSpinning]="loading" nzTip="Загрузка документов...">
+      <nz-table
+        #basicTable
+        nzSize="middle"
+        [nzScroll]="{ y: 'calc(100vh - 240px)' }"
+        [nzData]="documents"
+        [nzPageIndex]="pageIndex"
+        [nzPageSize]="pageSize"
+        [nzPageSizeOptions]="[20, 40, 80, 120, 160, 200]"
+        [nzTotal]="total"
+        [nzShowSizeChanger]="true"
+        [nzShowQuickJumper]="false"
+        [nzShowTotal]="totalTemplate"
+        [nzLoading]="loading"
+        [nzFrontPagination]="false"
+        (nzPageIndexChange)="onPageIndexChange($event)"
+        (nzPageSizeChange)="onPageSizeChange($event)"
+        (nzCurrentPageDataChange)="onCurrentPageDataChange($event)"
+        class="document-table">
+
+        <!-- Колонка: Номер документа -->
+        <thead (nzSortOrderChange)="onSortChange($event)">
+        <tr>
+          <th
+            nzCustomFilter
+            nzAlign="center">
+            Подсистема
+            <nz-filter-trigger
+              [(nzVisible)]="subsystemFilterVisible"
+              [nzActive]="isSubsystemFilterActive()"
+              [nzDropdownMenu]="subsystemFilterMenu"
+              (nzVisibleChange)="onSubsystemFilterOpen()">
+              <span nz-tooltip
+                    [nzTooltipTitle]="isSubsystemFilterActive()
+                      ? getCurrentSubsystem()
+                      : 'Фильтр по подсистеме'">
+                <div class="filter-trigger-wrapper">
+                  <nz-icon
+                    nzType="filter"
+                    nzTheme="outline"
+                    [ngClass]="{ 'active-icon': isSubsystemFilterActive() }"
+                    class="filter-trigger-icon">
+                  </nz-icon>
+                  @if (isSubsystemFilterActive()) {
+                    <div class="filter-indicator"></div>
+                  }
+                </div>
+              </span>
+            </nz-filter-trigger>
+          </th>
+          <th
+            nzCustomFilter
+            nzAlign="center">
+            Тип документа
+            @if (isDocTypeFilterAvailable()) {
+              <nz-filter-trigger
+                [(nzVisible)]="docTypeFilterVisible"
+                [nzActive]="isDocTypeFilterActive()"
+                [nzDropdownMenu]="docTypeFilterMenu"
+                (nzVisibleChange)="onDocTypeFilterOpen()">
+                <span nz-tooltip
+                      [nzTooltipTitle]="isDocTypeFilterActive()
+                        ? getCurrentDocType()
+                        : 'Фильтр по типу документа'">
+                  <div class="filter-trigger-wrapper">
+                    <nz-icon
+                      nzType="filter"
+                      nzTheme="outline"
+                      [ngClass]="{ 'active-icon': isDocTypeFilterActive() }"
+                      class="filter-trigger-icon">
+                    </nz-icon>
+                    @if (isDocTypeFilterActive()) {
+                      <div class="filter-indicator"></div>
+                    }
+                  </div>
+                </span>
+              </nz-filter-trigger>
+            } @else {
+              <span nz-tooltip nzTooltipTitle="Сначала выберите подсистему">
+                <div class="filter-trigger-wrapper disabled">
+                  <nz-icon
+                    nzType="filter"
+                    nzTheme="outline"
+                    class="filter-trigger-icon disabled-icon">
+                  </nz-icon>
+                </div>
+              </span>
+            }
+          </th>
+          <th
+            nzCustomFilter
+            nzColumnKey="doc_date"
+            nzAlign="center"
+            [nzSortPriority] = 1
+            [nzSortFn]="true"
+            [nzSortOrder]="getSortDirection('doc_date')">
+            Дата документа
+            <nz-filter-trigger
+              [(nzVisible)]="dateFilterVisible"
+              [nzActive]="isMessageDateFilterActive()"
+              [nzDropdownMenu]="dateChooseMenu"
+              (nzVisibleChange)="onDateFilterOpen()">
+                  <span nz-tooltip
+                        [nzTooltipTitle]="isMessageDateFilterActive()
+                    ? getCurrentDocDate()
+                    : 'Фильтр'">
+                      <div class="filter-trigger-wrapper">
+                        <nz-icon
+                          nzType="filter"
+                          nzTheme="outline"
+                          [ngClass]="{ 'active-icon': isMessageDateFilterActive() }"
+                        ></nz-icon>
+                        @if (isMessageDateFilterActive()) {
+                          <div class="filter-indicator"></div>
+                        }
+                      </div>
+                    </span>
+            </nz-filter-trigger>
+          </th>
+          <th
+            nzCustomFilter
+            nzColumnKey="doc_num"
+            nzAlign="center">
+            Номер документа
+            <nz-filter-trigger
+              [(nzVisible)]="docNumFilterVisible"
+              [nzActive]="isDocNumFilterActive()"
+              [nzDropdownMenu]="docNumFilterMenu"
+              (nzVisibleChange)="onDocNumFilterOpen()">
+              <span nz-tooltip
+                    [nzTooltipTitle]="isDocNumFilterActive()
+                ? getCurrentDocNum()
+                : 'Фильтр по номеру документа'">
+                  <div class="filter-trigger-wrapper">
+                    <nz-icon
+                      nzType="search"
+                      nzTheme="outline"
+                      [ngClass]="{ 'active-icon': isDocNumFilterActive() }"
+                      class="filter-trigger-icon">
+                    </nz-icon>
+                    @if (isDocNumFilterActive()) {
+                      <div class="filter-indicator"></div>
+                    }
+                  </div>
+                </span>
+            </nz-filter-trigger>
+          </th>
+          <th
+            nzCustomFilter
+            nzAlign="center">
+            Статус
+            @if (isDocStateFilterAvailable()) {
+            <nz-filter-trigger
+              [(nzVisible)]="statusFilterVisible"
+              [nzActive]="isStatusFilterActive()"
+              [nzDropdownMenu]="statusFilterMenu"
+              (nzVisibleChange)="onStatusFilterOpen()">
+              <span nz-tooltip
+                    [nzTooltipTitle]="isStatusFilterActive()
+                      ? getStatusFilterTooltip()
+                      : 'Фильтр по статусу'">
+                <div class="filter-trigger-wrapper">
+                  <nz-icon
+                    nzType="filter"
+                    nzTheme="outline"
+                    [ngClass]="{ 'active-icon': isStatusFilterActive() }"
+                    class="filter-trigger-icon">
+                  </nz-icon>
+                  @if (isStatusFilterActive()) {
+                    <div class="filter-indicator"></div>
+                  }
+                </div>
+              </span>
+            </nz-filter-trigger>
+            } @else {
+              <span nz-tooltip nzTooltipTitle="Сначала выберите тип(-ы) документа(-ов)">
+                <div class="filter-trigger-wrapper disabled">
+                  <nz-icon
+                    nzType="filter"
+                    nzTheme="outline"
+                    class="filter-trigger-icon disabled-icon">
+                  </nz-icon>
+                </div>
+              </span>
+            }
+          </th>
+          <th
+            nzCustomFilter
+            nzColumnKey="account"
+            nzAlign="center">
+            Лицевой счёт
+            <nz-filter-trigger
+              [(nzVisible)]="accountFilterVisible"
+              [nzActive]="isAccountFilterActive()"
+              [nzDropdownMenu]="accountFilterMenu"
+              (nzVisibleChange)="onAccountFilterOpen()">
+              <span nz-tooltip
+                    [nzTooltipTitle]="isAccountFilterActive()
+                ? getCurrentAccount()
+                : 'Фильтр по лицевому счёту'">
+                  <div class="filter-trigger-wrapper">
+                    <nz-icon
+                      nzType="search"
+                      nzTheme="outline"
+                      [ngClass]="{ 'active-icon': isAccountFilterActive() }"
+                      class="filter-trigger-icon">
+                    </nz-icon>
+                    @if (isAccountFilterActive()) {
+                      <div class="filter-indicator"></div>
+                    }
+                  </div>
+                </span>
+            </nz-filter-trigger>
+          </th>
+          <th
+            nzCustomFilter
+            nzColumnKey="tofk"
+            nzAlign="center">
+            Код ТОФК обслуживания
+            <nz-filter-trigger
+              [(nzVisible)]="tofkFilterVisible"
+              [nzActive]="isTofkFilterActive()"
+              [nzDropdownMenu]="tofkFilterMenu"
+              (nzVisibleChange)="onTofkFilterOpen()">
+              <span nz-tooltip
+                    [nzTooltipTitle]="isTofkFilterActive()
+                ? getCurrentTofk()
+                : 'Фильтр по коду ТОФК'">
+                  <div class="filter-trigger-wrapper">
+                    <nz-icon
+                      nzType="search"
+                      nzTheme="outline"
+                      [ngClass]="{ 'active-icon': isTofkFilterActive() }"
+                      class="filter-trigger-icon">
+                    </nz-icon>
+                    @if (isTofkFilterActive()) {
+                      <div class="filter-indicator"></div>
+                    }
+                  </div>
+                </span>
+            </nz-filter-trigger>
+          </th>
+          <th
+            nzCustomFilter
+            nzColumnKey="tofk_reception_time"
+            nzAlign="center"
+            [nzSortPriority] = 2
+            [nzSortFn]="true"
+            [nzSortOrder]="getSortDirection('tofk_reception_time')">
+            Дата и время приема ТОФК
+            <nz-filter-trigger
+              [(nzVisible)]="dateTofkReceptionTimeVisible"
+              [nzActive]="isTofkReceptionTimeFilterActive()"
+              [nzDropdownMenu]="dateTofkChooseMenu"
+              (nzVisibleChange)="onTofkDateFilterOpen()">
+                  <span nz-tooltip
+                        [nzTooltipTitle]="isTofkReceptionTimeFilterActive()
+                    ? getTofkCurrentReceptionTime()
+                    : 'Фильтр'">
+                      <div class="filter-trigger-wrapper">
+                        <nz-icon
+                          nzType="filter"
+                          nzTheme="outline"
+                          [ngClass]="{ 'active-icon': isTofkReceptionTimeFilterActive() }"
+                        ></nz-icon>
+                        @if (isTofkReceptionTimeFilterActive()) {
+                          <div class="filter-indicator"></div>
+                        }
+                      </div>
+                    </span>
+            </nz-filter-trigger>
+          </th>
+          <th nzAlign="center">Исполнители</th>
+          <th nzAlign="center" [nzWidth]="'80px'"></th>
+        </tr>
+        </thead>
+
+        <tbody>
+          @for (document of basicTable.data; track document.docGUID) {
+            <tr class="table-row">
+              <!-- Подсистема -->
+              <td nzAlign="center">
+                <nz-typography>
+                  <span nz-typography>{{ document.subsystemName }}</span>
+                </nz-typography>
+              </td>
+
+              <!-- Тип документа -->
+              <td class="doc-type-link" nzAlign="center">
+                <button
+                  nz-button
+                  nz-tooltip
+                  [nzTooltipTitle]="document.docTypeName + ' - Перейти к списку документов'"
+                  class="ant-btn ant-btn-link ant-btn-sm doc-type-link"
+                  (click)="onSubsystemClick(document); $event.stopPropagation()">
+                  {{ document.docTypeName }}
+                </button>
+              </td>
+
+              <!-- Дата документа -->
+              <td nzAlign="center">
+                <nz-typography>
+                  <span nz-typography>{{ formatDate(document.document.docDate, { year: 'numeric', month: '2-digit', day: '2-digit'}) }}</span>
+                </nz-typography>
+              </td>
+
+
+              <!-- Номер документа -->
+              <td nzAlign="center">
+                <nz-typography>
+                  <span
+                    nz-typography
+                    class="doc-num"
+                    (click)="onDocNumClick(document, $event)"
+                    (keydown)="onDocNumClick(document, $event)"
+                  >{{ document.document.docNum }}</span>
+                </nz-typography>
+              </td>
+
+              <!-- Статус -->
+              <td nzAlign="center">
+                <nz-tag
+                  class="status-tag">
+                  {{ document.docState }}
+                </nz-tag>
+              </td>
+
+              <!-- Счет -->
+              <td nzAlign="center">
+                <nz-typography>
+                  <span nz-typography>{{ document.document.account }}</span>
+                </nz-typography>
+              </td>
+
+
+              <!-- ТОФК -->
+              <td nzAlign="center">
+                <nz-typography>
+                  <span nz-typography>{{ document.document.tofk }}</span>
+                </nz-typography>
+              </td>
+
+              <!-- дата и время приема ТОФК -->
+              <td nzAlign="center">
+                <nz-typography>
+                  <span nz-typography>{{ formatDate(document.document.tofkReceptionTime) }}</span>
+                </nz-typography>
+              </td>
+
+              <!-- Пользователи -->
+              <td nzAlign="center">
+                <div class="user-list-cell">
+                  @if (document.users && document.users.length > 0) {
+                    @for (user of document.users; track user.id; let last = $last) {
+                      {{user.name}}
+                      @if (!last) {
+                        ,&nbsp;
+                      }
+                    }
+                  }
+                </div>
+              </td>
+
+              <!-- Ссылка на документ -->
+              <td class="doc-link-btn" nzAlign="center">
+                <button
+                  nz-button
+                  (click)="onDocLinkClick(document); $event.stopPropagation()"
+                  nzType="link"
+                  nzSize="small"
+                  nz-tooltip="Открыть документ">
+                  <i nz-icon nzType="export" nzTheme="outline"></i>
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </nz-table>
+
+      <!-- ФИЛЬТРЫ -->
+      <!-- Выбор даты -->
+      <nz-dropdown-menu #dateChooseMenu="nzDropdownMenu">
+        <div class="date-filter-dropdown">
+          <div class="filter-header">
+            <span class="filter-title">Фильтр по дате документа</span>
+            <button
+              nz-button
+              nzType="text"
+              nzSize="small"
+              class="close-button"
+              (click)="dateFilterVisible = false">
+              <i nz-icon nzType="close" nzTheme="outline"></i>
+            </button>
+          </div>
+
+          <div class="filter-content">
+            <div class="calendar-wrapper">
+              <nz-calendar
+                [nzFullscreen]="false"
+                [(ngModel)]="tempDocDate"
+                (nzSelectChange)="onDateValueChange($event)"
+                [nzDisabledDate]="disableOutside3Days"
+                class="filter-calendar">
+              </nz-calendar>
+            </div>
+
+            <div class="filter-actions">
+              <button
+                nz-button
+                nzType="default"
+                nzSize="small"
+                class="reset-button"
+                (click)="resetDateFilter()">
+                <i nz-icon nzType="close-circle" nzTheme="outline"></i>
+                Сбросить
+              </button>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                class="apply-button"
+                (click)="applyDateFilter()">
+                <i nz-icon nzType="check" nzTheme="outline"></i>
+                Применить
+              </button>
+            </div>
+          </div>
+        </div>
+      </nz-dropdown-menu>
+
+      <nz-dropdown-menu #dateTofkChooseMenu="nzDropdownMenu">
+        <div class="date-filter-dropdown">
+          <div class="filter-header">
+            <span class="filter-title">Фильтр по дате и времени приема ТОФК</span>
+            <button
+              nz-button
+              nzType="text"
+              nzSize="small"
+              class="close-button"
+              (click)="dateTofkReceptionTimeVisible = false">
+              <i nz-icon nzType="close" nzTheme="outline"></i>
+            </button>
+          </div>
+
+          <div class="filter-content">
+            <div class="calendar-wrapper">
+              <nz-calendar
+                [nzFullscreen]="false"
+                [(ngModel)]="tempDocDate"
+                (nzSelectChange)="onTofkDateValueChange($event)"
+                [nzDisabledDate]="disableOutside3Days"
+                class="filter-calendar">
+              </nz-calendar>
+            </div>
+
+            <div class="filter-actions">
+              <button
+                nz-button
+                nzType="default"
+                nzSize="small"
+                class="reset-button"
+                (click)="resetTofkDateFilter()">
+                <i nz-icon nzType="close-circle" nzTheme="outline"></i>
+                Сбросить
+              </button>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                class="apply-button"
+                (click)="applyTofkDateFilter()">
+                <i nz-icon nzType="check" nzTheme="outline"></i>
+                Применить
+              </button>
+            </div>
+          </div>
+        </div>
+      </nz-dropdown-menu>
+
+      <!-- Поиск по номеру документа -->
+      <nz-dropdown-menu #docNumFilterMenu="nzDropdownMenu">
+        <div class="doc-num-filter-dropdown">
+          <div class="filter-header">
+            <span class="filter-title">Фильтр по номеру документа</span>
+            <button
+              nz-button
+              nzType="text"
+              nzSize="small"
+              class="close-button"
+              (click)="docNumFilterVisible = false">
+              <i nz-icon nzType="close" nzTheme="outline"></i>
+            </button>
+          </div>
+
+          <div class="filter-content">
+            <div class="input-group">
+              <div class="input-wrapper">
+                <i nz-icon nzType="search" nzTheme="outline" class="input-icon"></i>
+                <input
+                  type="text"
+                  nz-input
+                  placeholder="Введите номер документа"
+                  [(ngModel)]="tempDocNumFilterValue"
+                  class="filter-input"
+                  (keyup.enter)="applyDocNumFilter()" />
+              </div>
+            </div>
+
+            <div class="filter-actions">
+              <button
+                nz-button
+                nzType="default"
+                nzSize="small"
+                class="reset-button"
+                (click)="resetDocNumFilter()">
+                <i nz-icon nzType="close-circle" nzTheme="outline"></i>
+                Сбросить
+              </button>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                class="apply-button"
+                [disabled]="!tempDocNumFilterValue || tempDocNumFilterValue.trim() === ''"
+                (click)="applyDocNumFilter()">
+                <i nz-icon nzType="check" nzTheme="outline"></i>
+                Применить
+              </button>
+            </div>
+          </div>
+        </div>
+      </nz-dropdown-menu>
+
+      <!-- Фильтр по подсистеме -->
+      <nz-dropdown-menu #subsystemFilterMenu="nzDropdownMenu">
+        <div class="doc-num-filter-dropdown">
+          <div class="filter-header">
+            <span class="filter-title">Фильтр по подсистеме</span>
+            <button
+              nz-button
+              nzType="text"
+              nzSize="small"
+              class="close-button"
+              (click)="subsystemFilterVisible = false">
+              <i nz-icon nzType="close-circle" nzTheme="outline"></i>
+            </button>
+          </div>
+
+          <div class="filter-content">
+            <div class="select-group">
+              <label class="select-label">Подсистема</label>
+              <nz-select
+                nzPlacement="topLeft"
+                nzPlaceHolder="Выберите подсистему"
+                [(ngModel)]="tempSubsystemFilter"
+                (ngModelChange)="onTempSubsystemFilterChange($event)"
+                class="filter-select">
+                @for (o of subsystemOptions; track o.value) {
+                  <nz-option [nzValue]="o.value" [nzLabel]="o.label"></nz-option>
+                }
+              </nz-select>
+            </div>
+
+            <div class="filter-actions">
+              <button
+                nz-button
+                nzType="default"
+                nzSize="small"
+                class="reset-button"
+                (click)="resetSubsystemFilter()">
+                <i nz-icon nzType="close-circle" nzTheme="outline"></i>
+                Сбросить
+              </button>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                class="apply-button"
+                (click)="applySubsystemFilter()">
+                <i nz-icon nzType="check" nzTheme="outline"></i>
+                Применить
+              </button>
+            </div>
+          </div>
+        </div>
+      </nz-dropdown-menu>
+
+      <!-- Фильтр по типу документа -->
+      <nz-dropdown-menu #docTypeFilterMenu="nzDropdownMenu">
+        <div class="doc-num-filter-dropdown">
+          <div class="filter-header">
+            <span class="filter-title">Фильтр по типу документа</span>
+            <button
+              nz-button
+              nzType="text"
+              nzSize="small"
+              class="close-button"
+              (click)="docTypeFilterVisible = false">
+              <i nz-icon nzType="close-circle" nzTheme="outline"></i>
+            </button>
+          </div>
+
+          <div class="filter-content">
+            <div class="select-group">
+              <label class="select-label">Тип документа</label>
+              <nz-select
+                nzMode="multiple"
+                nzPlaceHolder="Выберите типы документов"
+                [(ngModel)]="tempDocTypeFilter"
+                (ngModelChange)="onTempDocTypeFilterChange($event)"
+                nzPlacement="topLeft"
+                class="filter-select">
+                @for (o of docTypeFilterOptions; track o.value) {
+                  <nz-option [nzValue]="o.value" [nzLabel]="o.label"></nz-option>
+                }
+              </nz-select>
+            </div>
+
+            <div class="filter-actions">
+              <button
+                nz-button
+                nzType="default"
+                nzSize="small"
+                class="reset-button"
+                (click)="resetDocTypeFilter()">
+                <i nz-icon nzType="close-circle" nzTheme="outline"></i>
+                Сбросить
+              </button>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                class="apply-button"
+                (click)="applyDocTypeFilter()">
+                <i nz-icon nzType="check" nzTheme="outline"></i>
+                Применить
+              </button>
+            </div>
+          </div>
+        </div>
+      </nz-dropdown-menu>
+
+      <!-- Фильтр по статусу -->
+      <nz-dropdown-menu #statusFilterMenu="nzDropdownMenu">
+        <div class="doc-num-filter-dropdown">
+          <div class="filter-header">
+            <span class="filter-title">Фильтр по статусу</span>
+            <button
+              nz-button
+              nzType="text"
+              nzSize="small"
+              class="close-button"
+              (click)="statusFilterVisible = false">
+              <i nz-icon nzType="close-circle" nzTheme="outline"></i>
+            </button>
+          </div>
+
+          <div class="filter-content">
+            <div class="select-group">
+              <label class="select-label">Статус документа</label>
+              <nz-tree-select
+                class="filter-select"
+                nzCheckable
+                nzMultiple
+                nzPlacement="topLeft"
+                [nzDefaultExpandAll]="false"
+                [nzNodes]="statusTreeNodes"
+                [(ngModel)]="tempStatusFilter"
+                (ngModelChange)="onTempStatusFilterChange($event)"
+                [nzDropdownMatchSelectWidth]="false"
+                [nzDropdownStyle]="{ maxHeight: '200px', overflow: 'auto', width: '280px' }">
+              </nz-tree-select>
+            </div>
+
+            <div class="filter-actions">
+              <button
+                nz-button
+                nzType="default"
+                nzSize="small"
+                class="reset-button"
+                (click)="resetStatusFilter()">
+                <i nz-icon nzType="close-circle" nzTheme="outline"></i>
+                Сбросить
+              </button>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                class="apply-button"
+                (click)="applyStatusFilter()">
+                <i nz-icon nzType="check" nzTheme="outline"></i>
+                Применить
+              </button>
+            </div>
+          </div>
+        </div>
+      </nz-dropdown-menu>
+
+      <!-- Фильтр по лицевому счёту -->
+      <nz-dropdown-menu #accountFilterMenu="nzDropdownMenu">
+        <div class="doc-num-filter-dropdown">
+          <div class="filter-header">
+            <span class="filter-title">Фильтр по лицевому счёту</span>
+            <button
+              nz-button
+              nzType="text"
+              nzSize="small"
+              class="close-button"
+              (click)="accountFilterVisible = false">
+              <i nz-icon nzType="close" nzTheme="outline"></i>
+            </button>
+          </div>
+
+          <div class="filter-content">
+            <div class="input-group">
+              <div class="input-wrapper">
+                <i nz-icon nzType="search" nzTheme="outline" class="input-icon"></i>
+                <input
+                  type="text"
+                  nz-input
+                  placeholder="Введите лицевой счёт"
+                  [(ngModel)]="tempAccountFilterValue"
+                  class="filter-input"
+                  (keyup.enter)="applyAccountFilter()" />
+              </div>
+            </div>
+
+            <div class="filter-actions">
+              <button
+                nz-button
+                nzType="default"
+                nzSize="small"
+                class="reset-button"
+                (click)="resetAccountFilter()">
+                <i nz-icon nzType="close-circle" nzTheme="outline"></i>
+                Сбросить
+              </button>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                class="apply-button"
+                [disabled]="!tempAccountFilterValue || tempAccountFilterValue.trim() === ''"
+                (click)="applyAccountFilter()">
+                <i nz-icon nzType="check" nzTheme="outline"></i>
+                Применить
+              </button>
+            </div>
+          </div>
+        </div>
+      </nz-dropdown-menu>
+
+      <!-- Фильтр по коду ТОФК -->
+      <nz-dropdown-menu #tofkFilterMenu="nzDropdownMenu">
+        <div class="doc-num-filter-dropdown">
+          <div class="filter-header">
+            <span class="filter-title">Фильтр по коду ТОФК</span>
+            <button
+              nz-button
+              nzType="text"
+              nzSize="small"
+              class="close-button"
+              (click)="tofkFilterVisible = false">
+              <i nz-icon nzType="close" nzTheme="outline"></i>
+            </button>
+          </div>
+
+          <div class="filter-content">
+            <div class="input-group">
+              <div class="input-wrapper">
+                <i nz-icon nzType="search" nzTheme="outline" class="input-icon"></i>
+                <input
+                  type="text"
+                  nz-input
+                  placeholder="Введите код ТОФК"
+                  [(ngModel)]="tempTofkFilterValue"
+                  class="filter-input"
+                  (keyup.enter)="applyTofkFilter()" />
+              </div>
+            </div>
+
+            <div class="filter-actions">
+              <button
+                nz-button
+                nzType="default"
+                nzSize="small"
+                class="reset-button"
+                (click)="resetTofkFilter()">
+                <i nz-icon nzType="close-circle" nzTheme="outline"></i>
+                Сбросить
+              </button>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                class="apply-button"
+                [disabled]="!tempTofkFilterValue || tempTofkFilterValue.trim() === ''"
+                (click)="applyTofkFilter()">
+                <i nz-icon nzType="check" nzTheme="outline"></i>
+                Применить
+              </button>
+            </div>
+          </div>
+        </div>
+      </nz-dropdown-menu>
+    </nz-spin>
+  </nz-card>
+</div>
+
+<ng-template #totalTemplate let-total>
+  Всего записей: {{ total }}
+</ng-template>
+
+

@@ -1,0 +1,42 @@
+.container {
+  padding: 0;
+  width: 100%;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+/* Адаптивность */
+@media (max-width: 1024px) {
+  .container {
+    padding: 0;
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 0;
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 0;
+    width: 100%;
+  }
+}
+
+@media (max-width: 360px) {
+  .container {
+    padding: 0;
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) and (orientation: portrait) {
+  .container {
+    padding: 0;
+    width: 100%;
+  }
+}
