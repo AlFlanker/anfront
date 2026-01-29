@@ -159,26 +159,8 @@
   overflow: hidden;
 }
 
-.document-table ::ng-deep .ant-table-header,
-.document-table ::ng-deep .ant-table-body {
-  width: 100% !important;
-  box-sizing: border-box;
-}
-
-.document-table ::ng-deep .ant-table-header table,
-.document-table ::ng-deep .ant-table-body table {
-  width: 100% !important;
-  min-width: 100% !important;
-  table-layout: fixed;
-}
-
-.document-table ::ng-deep .ant-table-header {
-  padding-right: 8px;
-  margin-right: 0;
-}
-
-.document-table ::ng-deep .ant-table-body {
-  scrollbar-gutter: stable;
+.document-table ::ng-deep .ant-table table {
+  width: auto;
 }
 
 .document-table ::ng-deep .ant-table-thead > tr > th {
