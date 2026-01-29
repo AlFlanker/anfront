@@ -160,7 +160,17 @@
 }
 
 .document-table ::ng-deep .ant-table table {
-  width: auto;
+  width: 100%;
+  table-layout: fixed;
+}
+
+.document-table ::ng-deep .ant-table-header {
+  padding-right: 8px;
+}
+
+.document-table ::ng-deep .ant-table-body {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
 }
 
 .document-table ::ng-deep .ant-table-thead > tr > th {
